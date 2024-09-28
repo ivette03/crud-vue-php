@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <script src="https://unpkg.com/vue"></script>
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+    <link rel="stylesheet" href="./dist/output.css">
+</head>
+<body>
+    <h1 class="text-2xl font-bold text-black text-center p-3">Registro de alumnos</h1>
+    <div id="app" class="flex flex-col md:flex-row  bg-black mx-4 border border-2 border-green-600 p-12 justify-center">
+        <div class="md:w-1/2 font-bold bg-cyan-300">
+            <h1 class="text-center text-4xl font-bold">Formulario</h1>
+            <form @submit.prevent="agregarAlumno" class="flex flex-col p-4">
+                <p v-if="errorMessage" class="text-red-600 text-center font-bold">{{ errorMessage }}</p>
+                <label>Nombres:</label>
+                <input type="text" v-model="nuevoAlumno.nombres" name="nombres" placeholder="Escriba sus nombres" class="my-3 p-2">
+                <label>Apellidos:</label>
+                <input type="text" v-model="nuevoAlumno.apellidos" name="apellidos" placeholder="Escriba sus apellidos" class="my-3 p-2">
+                <input type="submit" value="Agregar alumno" class="bg-blue-500 text-white p-3 cursor-pointer hover:bg-blue-600">
+            </form>
+        </div>
+        <div class="mx-3">
+            <ul>
+                <li v-for="alumno in alumnos" :key="alumno.id" class="font-bold text-xl text-white flex justify-between items-center my-3">
+                    {{ alumno.nombres }} {{ alumno.apellidos }}
+                    <button @click.prevent="cargarAlumno(alumno)" class="p-2 bg-blue-500 text-white">Editar</button>
+                    <input type="submit" value="Eliminar" @click.prevent="eliminarAlumno(alumno.id)" class="bg-red-500 text-white font-bold p-2 mx-3 cursor-pointer hover:bg-red-600">
+                </li>
+            </ul>
+        </div>
+        <!-- Modal -->
+        <div v-if="modalAbierto" class="fixed inset-0 flex items-center justify-center z-50">
+            <div class="fixed inset-0 bg-black opacity-50"></div>
+            <div class="bg-white p-6 rounded-lg shadow-lg z-10">
+                <h2 class="text-lg font-bold">Editar datos de alumno</h2>
+                <form @submit.prevent="actualizarAlumno" class="flex flex-col p-4" method="POST">
+                    <p v-if="errorMessa" class="text-red-600">{{ errorMessa }}</p>
+                    <label for="nombres">Nombres:</label>
+                    <input type="text" v-model="alumnoEditado.nombres" name="nombres" class="my-3 p-2 text-black">
+                    <label for="apellidos">Apellidos:</label>
+                    <input type="text" v-model="alumnoEditado.apellidos" name="apellidos" placeholder="Escriba sus apellidos" class="my-3 p-2">
+                    <input type="submit" value="Actualizar" class="bg-blue-500 text-white p-3 cursor-pointer hover:bg-blue-600">
+                </form>
+                <button @click="toggleModal" class="mt-4 p-2 bg-red-500 text-white">Cerrar Modal</button>
+            </div>
+        </div>
+    </div>
+    <script>
+        const { createApp, ref, onMounted } = Vue;
+        const apiUrl = 'http://localhost:3000/';
+        const app = createApp({
+            setup() {
+                const alumnos = ref([]);
+                const modalAbierto = ref(false);
+                const nuevoAlumno = ref({ nombres: '', apellidos: '' });
+                const errorMessage = ref('');
+                const errorMessa=ref('');
+                const alumnoEditado = ref({ id: '', nombres: '', apellidos: '' });
+
+                const toggleModal = () => {
+                    modalAbierto.value = !modalAbierto.value;
+                };
+
+                const cargarAlumno = (alumno) => {
+                    alumnoEditado.value = { ...alumno }; // Cargar los datos del alumno en el formulario de edición
+                    toggleModal(); // Abrir el modal
+                };
+
+                const actualizarAlumno = async () => {
+                    if (!alumnoEditado.value.nombres || !alumnoEditado.value.apellidos) {
+                        errorMessa.value = "Los campos son obligatorios";
+                        return;
+                    }
+
+                    try {
+                        const respuesta = await axios.put(`${apiUrl}${alumnoEditado.value.id}`, alumnoEditado.value);
+                        errorMessa.value = "";
+                        toggleModal(); // Cerrar el modal después de actualizar
+                        obtenerAlumnos(); // Recargar la lista de alumnos
+
+                    } catch (error) {
+                        console.log('Error al actualizar el alumno:', error);
+                    }
+                };
+
+                const obtenerAlumnos = async () => {
+                    const respuesta = await axios.get(apiUrl);
+                    alumnos.value = respuesta.data;
+                };
+
+                const agregarAlumno = async () => {
+                    if (!nuevoAlumno.value.nombres || !nuevoAlumno.value.apellidos) {
+                        errorMessage.value = "Ingrese nombres y apellidos";
+                        return;
+                    } 
+                    if(!/^[a-zA-Z\s]+$/.test(nuevoAlumno.value.nombres) || !/^[a-zA-Z\s]+$/.test(nuevoAlumno.value.apellidos)){
+                        errorMessage.value = "Solo debe ingresar letras";
+                        return;
+                    }
+
+                    try {
+                        const respuesta = await axios.post(apiUrl, nuevoAlumno.value);
+                        alumnos.value.push(respuesta.data);
+                        nuevoAlumno.value = { nombres: '', apellidos: '' }; // Limpiar los campos
+                        obtenerAlumnos(); // Obtener la lista actualizada de alumnos
+
+                    } catch (error) {
+                        console.log('Error al agregar el alumno:', error);
+                    }
+                    errorMessage.value='';
+                };
+
+                const eliminarAlumno = async (id) => {
+                    try {
+                        await axios.delete(`${apiUrl}${id}`);
+                        alumnos.value = alumnos.value.filter(alumno => alumno.id !== id);
+                        obtenerAlumnos();
+
+                    } catch (error) {
+                        console.log('No se pudo eliminar el alumno:', error);
+                    }
+                };
+
+                onMounted(() => {
+                    obtenerAlumnos();
+                });
+
+                return {
+                    alumnos,
+                    nuevoAlumno,
+                    agregarAlumno,
+                    eliminarAlumno,
+                    errorMessage,
+                    toggleModal,
+                    modalAbierto,
+                    alumnoEditado,
+                    cargarAlumno,
+                    actualizarAlumno,
+                    errorMessa
+                };
+            }
+        });
+
+        app.mount('#app');
+    </script>
+</body>
+</html>

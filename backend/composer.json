@@ -1,0 +1,17 @@
+{
+    "name": "ivette/backend",
+    "autoload": {
+        "psr-4": {
+            "Ivette\\Backend\\": "src/"
+        }
+    },
+    "authors": [
+        {
+            "name": "ivette"
+        }
+    ],
+    "require": {
+        "bramus/router": "~1.6",
+        "vlucas/phpdotenv": "^5.6"
+    }
+}
